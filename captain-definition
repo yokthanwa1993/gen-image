@@ -1,7 +1,13 @@
 {
     "schemaVersion": 2,
-    "templateId": "node/18",
     "dockerfileLines": [
-        "RUN apk add --no-cache python3 make g++"
+        "FROM node:18-alpine",
+        "RUN apk add --no-cache python3 make g++",
+        "WORKDIR /usr/src/app",
+        "COPY ./package.json /usr/src/app/",
+        "COPY ./package-lock.json /usr/src/app/",
+        "RUN npm install --production",
+        "COPY . .",
+        "CMD [\"node\", \"server.js\"]"
     ]
 }
