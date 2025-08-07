@@ -1,0 +1,27 @@
+{
+  "name": "svg-to-webp-server",
+  "version": "1.0.0",
+  "description": "SVG to WebP Server with Screenshot",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-deps": "npm install express puppeteer sharp"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "canvas": "^3.1.2",
+    "dotenv": "^17.2.1",
+    "express": "^4.18.2",
+    "form-data": "^4.0.4",
+    "puppeteer": "^21.11.0",
+    "sharp": "^0.33.5"
+  },
+  "keywords": [
+    "svg",
+    "webp",
+    "server",
+    "screenshot"
+  ],
+  "author": "",
+  "license": "MIT"
+}
