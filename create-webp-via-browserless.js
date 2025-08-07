@@ -3,7 +3,7 @@ const puppeteer = require('puppeteer');
 const axios = require('axios');
 const FormData = require('form-data');
 
-// --- ฟังก์ชัน Helper (ไม่มีการเปลี่ยนแปลง) ---
+// --- ฟังก์ชัน Helper ---
 function wrapText(text, maxWidth, fontSize) {
   const avgCharWidth = fontSize * 0.6;
   const maxCharsPerLine = Math.floor(maxWidth / avgCharWidth);
@@ -28,6 +28,31 @@ function wrapText(text, maxWidth, fontSize) {
   }
   return lines;
 }
+
+// --- ฟังก์ชันใหม่สำหรับหาขนาดฟอนต์อัตโนมัติ ---
+function findOptimalFontSize(text, options = {}) {
+    const {
+        maxWidth = 700,
+        maxLines = 7,
+        maxFontSize = 120,
+        minFontSize = 40
+    } = options;
+
+    let fontSize = maxFontSize;
+    
+    while (fontSize >= minFontSize) {
+        const lines = wrapText(text, maxWidth, fontSize);
+        if (lines.length <= maxLines) {
+            console.log(`ℹ️  เลือกขนาดฟอนต์ที่เหมาะสม: ${fontSize}px (${lines.length} บรรทัด)`);
+            return fontSize; // เจขนาดที่เหมาะสมแล้ว
+        }
+        fontSize -= 2; // ลดขนาดฟอนต์ลงแล้วลองใหม่
+    }
+    
+    console.log(`⚠️  ข้อความยาวเกินไป, ใช้ขนาดฟอนต์เล็กที่สุด: ${minFontSize}px`);
+    return minFontSize; // คืนค่าขนาดเล็กที่สุดถ้ายังยาวเกิน
+}
+
 
 function fontToBase64(fontPath) {
   try {
@@ -89,7 +114,6 @@ function createHTML(text, fontSize = 100, maxWidth = 700, lineHeight = 1.2, font
     return htmlContent;
 }
 
-// --- ฟังก์ชันสำหรับอัปโหลดรูปภาพ ---
 async function uploadToFreeimage(base64Image) {
     const apiKey = '6d207e02198a847aa98d0a2a901485a5';
     const form = new FormData();
@@ -100,9 +124,7 @@ async function uploadToFreeimage(base64Image) {
     try {
         console.log('🚀 กำลังอัปโหลดไปยัง Freeimage.host...');
         const response = await axios.post('https://freeimage.host/api/1/upload', form, {
-            headers: {
-                ...form.getHeaders()
-            }
+            headers: { ...form.getHeaders() }
         });
 
         if (response.data && response.data.status_code === 200) {
@@ -117,50 +139,46 @@ async function uploadToFreeimage(base64Image) {
     }
 }
 
-// --- ฟังก์ชันหลักที่ใช้ Local Puppeteer ---
-async function createWebPAndUpload(options = {}) {
+// --- ฟังก์ชันหลักที่แก้ไขให้ปรับขนาดฟอนต์อัตโนมัติ ---
+async function createWebPAndUploadViaBrowserless(options = {}) {
   const {
     text = "สวัสดีครับ",
-    fontSize = 100,
+    fontSize, // รับค่ามา แต่จะถูกคำนวณใหม่
     maxWidth = 700,
     lineHeight = 1.2,
     quality = 90,
-    fontPath = "SFThonburi-Bold.ttf"
+    fontPath = "SFThonburi-Bold.ttf",
+    browserlessToken,
+    autoSize = true // เพิ่ม option สำหรับเปิด/ปิด auto-sizing
   } = options;
+
+  if (!browserlessToken) {
+    throw new Error('กรุณาระบุ BROWSERLESS_TOKEN');
+  }
+
+  // คำนวณขนาดฟอนต์ที่เหมาะสมถ้า autoSize เป็น true
+  const optimalFontSize = autoSize 
+    ? findOptimalFontSize(text, { maxWidth }) 
+    : fontSize || 100;
 
   let browser;
   
   try {
-    console.log('🚀 เริ่มต้น Puppeteer (โหมดเก่า)...');
+    console.log('🚀 กำลังเชื่อมต่อกับ Browserless...');
     
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ]
+    browser = await puppeteer.connect({
+      browserWSEndpoint: `wss://browserless.lslly.com?token=${browserlessToken}`
     });
     
     const page = await browser.newPage();
     
-    await page.setViewport({
-      width: 1080,
-      height: 1080,
-      deviceScaleFactor: 1
-    });
+    await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 1 });
     
-    const htmlContent = createHTML(text, fontSize, maxWidth, lineHeight, fontPath);
+    // ใช้ขนาดฟอนต์ที่คำนวณได้
+    const htmlContent = createHTML(text, optimalFontSize, maxWidth, lineHeight, fontPath);
     
     console.log('📝 กำลังโหลดเนื้อหา...');
-    await page.setContent(htmlContent, {
-      waitUntil: 'load'
-    });
+    await page.setContent(htmlContent, { waitUntil: 'load' });
     
     await page.evaluateHandle('document.fonts.ready');
     
@@ -171,9 +189,8 @@ async function createWebPAndUpload(options = {}) {
       encoding: 'base64'
     });
 
-    // หลังจากได้ภาพแล้ว ก็ไม่จำเป็นต้องใช้ browser อีกต่อไป
     await browser.close();
-    browser = null; // ป้องกันการปิดซ้ำใน finally
+    browser = null;
 
     const imageUrl = await uploadToFreeimage(imageBuffer);
     
@@ -181,7 +198,6 @@ async function createWebPAndUpload(options = {}) {
     
   } catch (error) {
     console.error('❌ เกิดข้อผิดพลาด:', error.message);
-    // ตรวจสอบให้แน่ใจว่า browser ถูกปิดเสมอหากเกิด error
     if (browser) {
         await browser.close();
     }
@@ -191,12 +207,15 @@ async function createWebPAndUpload(options = {}) {
 
 // --- ตัวอย่างการใช้งาน ---
 async function main() {
-  const imageUrl = await createWebPAndUpload({
-    text: 'อยากกลับไป "เป็นเด็ก👶" แล้วรีเซ็ททางเดินชีวิต ของตัวเองใหม่',
-    fontSize: 100,
-    maxWidth: 700,
+  const BROWSERLESS_TOKEN = "77482ddfd0ec44d1c1a8b55ddf352d98";
+  const longText = `"มีจริงนะ!!คนที่คิด ไม่ดีกับ คนอื่นอิจฉาอยากให้ชีวิต เขาแย่ สุดท้าย..ตัวเองนั่นแหละจะ ล่มจมกรรมทางใจมันให้ผล แรงรอดูในชาตินี้ได้เลย"`;
+
+  const imageUrl = await createWebPAndUploadViaBrowserless({
+    text: longText,
+    maxWidth: 800, // เพิ่มความกว้างสูงสุดเล็กน้อยสำหรับข้อความยาว
     quality: 90,
-    fontPath: "SFThonburi-Bold.ttf"
+    fontPath: "SFThonburi-Bold.ttf",
+    browserlessToken: BROWSERLESS_TOKEN
   });
   
   if (imageUrl) {
@@ -211,7 +230,5 @@ if (require.main === module) {
 }
 
 module.exports = { 
-  createWebPAndUpload,
-  createHTML,
-  wrapText 
+  createWebPAndUploadViaBrowserless,
 };
