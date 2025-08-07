@@ -1,5 +1,7 @@
 {
     "schemaVersion": 2,
-    "templateId": "node/18"
+    "templateId": "node/18",
+    "dockerfileLines": [
+        "RUN apk add --no-cache python3 make g++"
+    ]
 }
-
