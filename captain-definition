@@ -2,7 +2,7 @@
     "schemaVersion": 2,
     "dockerfileLines": [
         "FROM node:18-alpine",
-        "RUN apk add --no-cache python3 make g++",
+        "RUN apk add --no-cache python3 make g++ pkgconfig pixman-dev cairo-dev pango-dev giflib-dev",
         "WORKDIR /usr/src/app",
         "COPY ./package.json /usr/src/app/",
         "COPY ./package-lock.json /usr/src/app/",
