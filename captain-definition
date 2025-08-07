@@ -1,8 +1,8 @@
 {
     "schemaVersion": 2,
     "dockerfileLines": [
-        "FROM node:18-alpine",
-        "RUN apk add --no-cache python3 make g++ pkgconfig pixman-dev cairo-dev pango-dev giflib-dev",
+        "FROM node:18-slim",
+        "RUN apt-get update && apt-get install -yq g++ make python3 build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev",
         "WORKDIR /usr/src/app",
         "COPY ./package.json /usr/src/app/",
         "COPY ./package-lock.json /usr/src/app/",
