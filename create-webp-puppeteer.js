@@ -39,7 +39,7 @@ function fontToBase64(fontPath) {
   }
 }
 
-function createHTML(text, fontSize = 100, maxWidth = 700, lineHeight = 1.2, fontPath = "SFThonburi-Bold.ttf") {
+function createHTML(text, fontSize = 100, maxWidth = 700, lineHeight = 1.2, fontPath = "SFThonburi-Bold.ttf", width = 1080, height = 1080) {
     const lines = wrapText(text, maxWidth, fontSize);
     const fontBase64 = fontToBase64(fontPath);
     const htmlContent = `
@@ -59,8 +59,8 @@ function createHTML(text, fontSize = 100, maxWidth = 700, lineHeight = 1.2, font
             body {
                 margin: 0;
                 padding: 0;
-                width: 1080px;
-                height: 1080px;
+                width: ${width}px;
+                height: ${height}px;
                 background-color: #000000;
                 display: flex;
                 align-items: center;
@@ -125,7 +125,9 @@ async function createWebPAndUpload(options = {}) {
     maxWidth = 700,
     lineHeight = 1.2,
     quality = 90,
-    fontPath = "SFThonburi-Bold.ttf"
+    fontPath = "SFThonburi-Bold.ttf",
+    width = 1080,
+    height = 1080
   } = options;
 
   let browser;
@@ -134,15 +136,13 @@ async function createWebPAndUpload(options = {}) {
     console.log('🚀 เริ่มต้น Puppeteer (โหมดเก่า)...');
     
     browser = await puppeteer.launch({
-      headless: true,
+      headless: 'new',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
-        '--no-zygote',
-        '--single-process',
         '--disable-gpu'
       ]
     });
@@ -150,12 +150,12 @@ async function createWebPAndUpload(options = {}) {
     const page = await browser.newPage();
     
     await page.setViewport({
-      width: 1080,
-      height: 1080,
+      width: width,
+      height: height,
       deviceScaleFactor: 1
     });
-    
-    const htmlContent = createHTML(text, fontSize, maxWidth, lineHeight, fontPath);
+
+    const htmlContent = createHTML(text, fontSize, maxWidth, lineHeight, fontPath, width, height);
     
     console.log('📝 กำลังโหลดเนื้อหา...');
     await page.setContent(htmlContent, {

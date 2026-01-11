@@ -1,8 +1,15 @@
 const express = require('express');
-const { createWebPAndUpload } = require('./create-webp-puppeteer.js');
+require('dotenv').config();
+
+// เลือกใช้ local หรือ browserless ตาม environment
+const useBrowserless = process.env.USE_BROWSERLESS === 'true' || process.env.BROWSERLESS_TOKEN;
+
+const { createWebPAndUpload } = useBrowserless
+  ? require('./create-webp-browserless.js')
+  : require('./create-webp-puppeteer.js');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Middleware สำหรับจัดการ error แบบรวมศูนย์
 const asyncHandler = fn => (req, res, next) => {
@@ -11,12 +18,14 @@ const asyncHandler = fn => (req, res, next) => {
 
 // Route หลักสำหรับสร้างภาพ
 app.get('/', asyncHandler(async (req, res) => {
-    const { 
-        text, 
-        fontSize = 100, 
-        quality = 90, 
-        maxWidth = 700, 
-        lineHeight = 1.2 
+    const {
+        text,
+        fontSize = 100,
+        quality = 90,
+        maxWidth = 700,
+        lineHeight = 1.2,
+        width = 1080,
+        height = 1080
     } = req.query;
 
     if (!text) {
@@ -37,7 +46,9 @@ app.get('/', asyncHandler(async (req, res) => {
         fontSize: parseInt(fontSize, 10),
         quality: parseInt(quality, 10),
         maxWidth: parseInt(maxWidth, 10),
-        lineHeight: parseFloat(lineHeight)
+        lineHeight: parseFloat(lineHeight),
+        width: parseInt(width, 10),
+        height: parseInt(height, 10)
     };
 
     // เรียกใช้ฟังก์ชันจาก puppeteer script
@@ -55,8 +66,13 @@ app.get('/', asyncHandler(async (req, res) => {
 app.get('/info', (req, res) => {
     res.status(200).json({
         message: 'Puppeteer Image Generator API',
-        usage: `GET /?text=ข้อความ&fontSize=100&quality=90`,
-        example: `http://localhost:${port}/?text=ทดสอบข้อความยาวๆ|แล้วขึ้นบรรทัดใหม่`
+        usage: `GET /?text=ข้อความ&fontSize=100&quality=90&width=1080&height=1080`,
+        example: `http://localhost:${port}/?text=ทดสอบข้อความยาวๆ&width=720&height=1080`,
+        aspectRatios: {
+            '1:1': 'width=1080&height=1080 (default)',
+            '2:3': 'width=720&height=1080',
+            '9:16': 'width=1080&height=1920'
+        }
     });
 });
 

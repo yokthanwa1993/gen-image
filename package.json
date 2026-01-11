@@ -5,15 +5,15 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "install-deps": "npm install express puppeteer sharp"
+    "install-deps": "npm install express sharp axios form-data"
   },
   "dependencies": {
     "axios": "^1.11.0",
-    "canvas": "^3.1.2",
     "dotenv": "^17.2.1",
     "express": "^4.18.2",
     "form-data": "^4.0.4",
-    "puppeteer": "^21.11.0",
+    "puppeteer": "^24.34.0",
+    "puppeteer-core": "^24.34.0",
     "sharp": "^0.33.5"
   },
   "keywords": [
